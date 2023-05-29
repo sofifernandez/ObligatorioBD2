@@ -1,4 +1,5 @@
-/*
+
+
 CREATE DATABASE DBCARGAS
 GO
 USE DBCARGAS
@@ -27,7 +28,7 @@ CREATE TABLE Aeropuerto(codIATA char(3) not null,
 GO
 CREATE TABLE Carga(idCarga int identity not null,
                    avionID char(10) not null,
-				   dContID char(3) not null,
+				   dContID char(6) not null,
 				   cargaFch date,
 				   cargaKilos decimal,
 				   cliID int,
@@ -47,7 +48,7 @@ CREATE TABLE AuditContainer(AuditID int identity not null,
 						    AltoActual decimal,
 						    CapActual decimal)
 GO							
-*/
+
 /*
 --------------------------------------------------------------------------------------------------------------------
 ---------------------------------RESTRICCIONES----------------------------------------------------------------------
@@ -55,6 +56,26 @@ GO
 */
 
 use DBCARGAS
+
+
+ALTER TABLE Carga ALTER COLUMN dContID CHAR(6);
+
+ALTER TABLE Dcontainer ALTER COLUMN dContLargo DECIMAL(12,2);
+ALTER TABLE Dcontainer ALTER COLUMN dcontAlto DECIMAL(12,2);
+ALTER TABLE Dcontainer ALTER COLUMN dcontAncho DECIMAL(12,2);
+
+ALTER TABLE Avion ALTER COLUMN avionCapacidad DECIMAL(12,2)
+
+ALTER TABLE AuditContainer ALTER COLUMN LargoAnterior DECIMAL(12,2)
+ALTER TABLE AuditContainer ALTER COLUMN AnchoAnterior DECIMAL(12,2)
+ALTER TABLE AuditContainer ALTER COLUMN AltoAnterior DECIMAL(12,2)
+ALTER TABLE AuditContainer ALTER COLUMN CapAnterior DECIMAL(12,2)
+ALTER TABLE AuditContainer ALTER COLUMN LargoActual DECIMAL(12,2)
+ALTER TABLE AuditContainer ALTER COLUMN AnchoActual DECIMAL(12,2)
+ALTER TABLE AuditContainer ALTER COLUMN AltoActual DECIMAL(12,2)
+ALTER TABLE AuditContainer ALTER COLUMN CapActual DECIMAL(12,2)
+
+
 
 --RESTRICCIONES DE LA TABLA Cliente
 ALTER TABLE Cliente ADD CONSTRAINT PK_Cliente PRIMARY KEY (cliID);
@@ -78,11 +99,11 @@ ALTER TABLE Aeropuerto ADD CONSTRAINT PK_Aeropuerto PRIMARY KEY (codIATA);
 ALTER TABLE Carga ADD CONSTRAINT PK_Carga PRIMARY KEY (idCarga);
 ALTER TABLE Carga ADD CONSTRAINT FK_AvionCarga FOREIGN KEY (avionID) REFERENCES Avion (avionID);
 ALTER TABLE Carga ADD CONSTRAINT FK_ContainerCarga FOREIGN KEY (dContID) REFERENCES Dcontainer (dContID);
-ALTER TABLE Carga ADD CONSTRAINT FK_ClienteCarga FOREIGN KEY (cliID) REFERENCES Avion (cliID);
-ALTER TABLE Carga ADD CONSTRAINT FK_AeroOrigenCarga FOREIGN KEY (aeroOrigen) REFERENCES Avion (codIATA);
-ALTER TABLE Carga ADD CONSTRAINT FK_AeroDestinoCarga FOREIGN KEY (aeroDestino) REFERENCES Avion (codIATA);
+ALTER TABLE Carga ADD CONSTRAINT FK_ClienteCarga FOREIGN KEY (cliID) REFERENCES Cliente (cliID);
+ALTER TABLE Carga ADD CONSTRAINT FK_AeroOrigenCarga FOREIGN KEY (aeroOrigen) REFERENCES Aeropuerto (codIATA);
+ALTER TABLE Carga ADD CONSTRAINT FK_AeroDestinoCarga FOREIGN KEY (aeroDestino) REFERENCES Aeropuerto (codIATA);
 ALTER TABLE Carga ADD CONSTRAINT CHK_StatusCarga CHECK (cargaStatus IN ('R', 'C', 'T', 'D', 'E')) --EN LA TABLA DICE QUE ESTE CAMPO ES CHARACTER(1)
-ALTER TABLE Carga ADD CONSTRAINT UK_AvContFecha UNIQUE(avionID, dContID y cargaFch);
+ALTER TABLE Carga ADD CONSTRAINT UK_AvContFecha UNIQUE(avionID, dContID, cargaFch);
 
 /*
 --------------------------------------------------------------------------------------------------------------------

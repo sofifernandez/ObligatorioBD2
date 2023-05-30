@@ -41,6 +41,8 @@ VALUES
   ('DC009', 1.9, 2.2, 1.6, 4),
   ('DC010', 2.1, 2.5, 2.3, 5);
 
+INSERT INTO Dcontainer (dContID, dContLargo, dContAncho, dcontAlto, dcontCapacidad)
+VALUES ('DC011', 2.1, 2.1, 1.9, 4) --contenedor que nunca se usó (para la query 4c)
 
 INSERT INTO Aeropuerto (codIATA, aeroNombre, aeroPais)
 VALUES 
@@ -79,7 +81,19 @@ VALUES
   ('AVN006', 'DC006', '16/10/2018', 6000, 3, 'LIS', 'FRA', 'D')
   ;
 
-  --('R', 'C', 'T', 'D', 'E'))
+
+-- Para que el cliente 1 haya usado todos los aviones (para la query 4d)
+INSERT INTO Carga (avionID, dContID, cargaFch, cargaKilos, cliID, aeroOrigen, aeroDestino, cargaStatus)
+VALUES ('AVN001', 'DC008', '12/01/2023', 7000, 1, 'FRA', 'MAD', 'D'),
+  ('AVN002', 'DC009', '13/02/2023', 800, 1, 'ATH', 'LIS', 'R'),
+  ('AVN003', 'DC010', '14/03/2022', 3000, 1, 'FRA', 'MAD', 'R'),
+  ('AVN004', 'DC004', '15/04/2022', 7000, 1, 'IST', 'LHR', 'C'),
+  ('AVN005', 'DC005', '16/05/2021', 900, 1, 'ATH', 'AMS', 'C'),
+  ('AVN006', 'DC006', '17/06/2020', 5000, 1, 'ATH', 'LIS', 'D'),
+  ('AVN007', 'DC008', '18/07/2020', 7000, 1, 'FRA', 'MAD', 'D'),
+  ('AVN008', 'DC009', '19/08/2019', 2000, 1, 'ATH', 'IST', 'R'),
+  ('AVN009', 'DC010', '20/09/2018', 4000, 1, 'IST', 'LHR', 'R'),
+  ('AVN010', 'DC004', '21/10/2018', 8000, 1, 'FRA', 'MAD', 'C');
 
 /*ESTOS DARIAN ERROR*/
 INSERT INTO Cliente (cliNom, cliMail, cliCantCargas)

@@ -57,7 +57,9 @@ VALUES
   ('LIS', 'Lisboa-Portela', 'Portugal'),
   ('DUB', 'Dublin-Aerfort Bhaile Atha Cli', 'Irlanda');
 
-
+  --Otro aeropuerto que comparta país para el procedimiento almacenado 5d
+  INSERT INTO Aeropuerto (codIATA, aeroNombre, aeroPais)
+VALUES ('LGW', 'Londres-Gatwick', 'Reino Unido')
 
 
 INSERT INTO Carga (avionID, dContID, cargaFch, cargaKilos, cliID, aeroOrigen, aeroDestino, cargaStatus)
@@ -94,6 +96,10 @@ VALUES ('AVN001', 'DC008', '12/01/2023', 7000, 1, 'FRA', 'MAD', 'D'),
   ('AVN008', 'DC009', '19/08/2019', 2000, 1, 'ATH', 'IST', 'R'),
   ('AVN009', 'DC010', '20/09/2018', 4000, 1, 'IST', 'LHR', 'R'),
   ('AVN010', 'DC004', '21/10/2018', 8000, 1, 'FRA', 'MAD', 'C');
+
+ --Para el procedimiento almacenado 5d
+  INSERT INTO Carga (avionID, dContID, cargaFch, cargaKilos, cliID, aeroOrigen, aeroDestino, cargaStatus)
+VALUES   ('AVN009', 'DC001', '19/10/2018', 4000, 1, 'LIS', 'LGW', 'E')
 
 /*ESTOS DARIAN ERROR*/
 INSERT INTO Cliente (cliNom, cliMail, cliCantCargas)

@@ -105,6 +105,9 @@ ALTER TABLE Carga ADD CONSTRAINT FK_AeroDestinoCarga FOREIGN KEY (aeroDestino) R
 ALTER TABLE Carga ADD CONSTRAINT CHK_StatusCarga CHECK (cargaStatus IN ('R', 'C', 'T', 'D', 'E')) --EN LA TABLA DICE QUE ESTE CAMPO ES CHARACTER(1)
 ALTER TABLE Carga ADD CONSTRAINT UK_AvContFecha UNIQUE(avionID, dContID, cargaFch);
 
+--RESTRICCIONES DE LA TABLA AuditContainer
+ALTER TABLE AuditContainer ADD CONSTRAINT PK_AuditContainer PRIMARY KEY (AuditID);
+
 /*
 --------------------------------------------------------------------------------------------------------------------
 ---------------------------------INDICES----------------------------------------------------------------------------

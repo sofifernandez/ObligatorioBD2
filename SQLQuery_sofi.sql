@@ -55,7 +55,8 @@ WHERE c.aeroOrigen=a1.codIATA AND c.aeroDestino=a2.codIATA AND c.avionID=av.avio
 
 
 /*
-5 b) Realizar un procedimiento almacenado que, dadas las 3 medidas de un contenedor (largo x ancho x alto) retorne en una tabla 
+5 b) 
+Realizar un procedimiento almacenado que, dadas las 3 medidas de un contenedor (largo x ancho x alto) retorne en una tabla 
 los datos de los contenedores que coinciden con dichas medidas, de no existir ninguno se debe retornar un mensaje.
 */
 
@@ -80,17 +81,161 @@ BEGIN
     END
 END
 
-execute sp_DimContenedores 2.0,2.5,1.9
+EXECUTE sp_DimContenedores 2.0,2.5,1.9
+
+
 
 /*
+5 d)
 Hacer una función que, para un cliente dado, retorne la cantidad total de kilos transportados 
 por dicho cliente a aeropuertos de diferente país.
 */
 
-SELECT SUM(c.cargaKilos)
-FROM Cliente cli, Carga C
-WHERE cli.cliID=c.cliID
+SELECT c.cliID,SUM(c.cargaKilos) as KilosTotales, aero.aeroPais as PaisDestino, COUNT(c.aeroDestino) as Cargas
+FROM Cliente cli, Carga C, Aeropuerto aero
+WHERE cli.cliID=c.cliID AND aero.codIATA=c.aeroDestino 
+GROUP BY c.cliID, aero.aeroPais
+ORDER BY c.cliID
+
+CREATE FUNCTION sf_KilosClientePais(@IDCliente int)
+RETURNS TABLE
+AS
+RETURN(
+	SELECT c.cliID,SUM(c.cargaKilos) as KilosTotales, aero.aeroPais as PaisDestino, COUNT(c.aeroDestino) as Cargas
+	FROM Cliente cli, Carga C, Aeropuerto aero
+	WHERE cli.cliID=c.cliID AND aero.codIATA=c.aeroDestino AND cli.cliID=@IDCliente
+	GROUP BY c.cliID, aero.aeroPais
+	);
+
+SELECT * FROM sf_KilosClientePais(1)
+
+
+/*
+6 b) Realizar un procedimiento almacenado que, dadas las 3 medidas de un contenedor (largo x ancho x alto) 
+retorne en una tabla los datos de los contenedores que coinciden con dichas medidas, de no existir ninguno 
+se debe retornar un mensaje.
+*/
+
+CREATE TRIGGER trg_MedidasContenedor
+ON Dcontainer
+AFTER UPDATE
+AS
+BEGIN 
+	IF EXISTS (SELECT * FROM inserted) AND EXISTS (SELECT * FROM deleted)
+		/*Si se edita el LARGO*/
+	BEGIN
+		IF UPDATE(dContLargo)
+		INSERT INTO AuditContainer(AuditFecha,AuditHost, LargoAnterior, LargoActual) 
+			SELECT getdate(),host_name(),d.dContLargo, i.dContLargo
+	        FROM inserted i, deleted d
+			WHERE i.dContID=d.dContID
+	END
+		/*Si se edita el ANCHO*/
+	BEGIN
+		IF UPDATE(dContAncho)
+		INSERT INTO AuditContainer(AuditFecha,AuditHost, AnchoAnterior, AnchoActual) 
+			SELECT getdate(),host_name(),d.dContAncho, i.dContAncho
+	        FROM inserted i, deleted d
+			WHERE i.dContID=d.dContID
+	END
+		/*Si se edita el ALTO*/
+	BEGIN
+		IF UPDATE(dContAlto)
+		INSERT INTO AuditContainer(AuditFecha,AuditHost, AltoAnterior, AltoActual) 
+			SELECT getdate(),host_name(),d.dContAncho, i.dcontAlto
+	        FROM inserted i, deleted d
+			WHERE i.dContID=d.dContID
+	END
+		/*Si se edita la CAPACIDAD */
+	BEGIN
+		IF UPDATE(dcontCapacidad)
+		INSERT INTO AuditContainer(AuditFecha,AuditHost, CapAnterior, CapActual) 
+			SELECT getdate(),host_name(),d.dcontCapacidad, i.dcontCapacidad
+	        FROM inserted i, deleted d
+			WHERE i.dContID=d.dContID
+	END
+END
+
+
+SELECT * FROM Dcontainer
+/*PROBAR*/
+UPDATE Dcontainer SET dcontLargo=2.4 WHERE dContID='DC011'
+SELECT * FROM AuditContainer
+
+
+/*
+6 a)
+Realizar un disparador que lleve un mantenimiento de la cantidad de cargas acumuladas de un cliente, 
+este disparador debe controlar tanto los ingresos de cargas como el borrado de cargas.
+*/
+
+/*NO FUNCIONA EL DELETE*/
+
+ALTER TRIGGER trg_ActualizarCargasCliente
+ON Carga
+AFTER INSERT, DELETE
+AS
+BEGIN
+	/*En caso de INSERT*/
+	IF EXISTS (SELECT * FROM inserted) AND NOT EXISTS (SELECT * FROM deleted)
+	BEGIN
+		UPDATE Cliente
+		SET cliCantCargas = cliCantCargas + (SELECT COUNT(i.cliID) 
+											FROM Inserted i 
+											WHERE i.cliID = Cliente.cliID
+											GROUP BY i.cliID)
+		WHERE cliID IN (SELECT cliID
+						FROM inserted)
+	END
+
+	/*En caso de DELETE*/
+	IF NOT EXISTS (SELECT * FROM inserted) AND EXISTS (SELECT * FROM deleted)
+	BEGIN
+		UPDATE Cliente
+		SET cliCantCargas = cliCantCargas - (SELECT COUNT(d.cliID) 
+											FROM Deleted d 
+											WHERE d.cliID = Cliente.cliID
+											GROUP BY d.cliID)
+		WHERE cliID IN (SELECT cliID
+						FROM Deleted)
+	END
+END
+
+
+SELECT * FROM Cliente
+SELECT * FROM Carga
+
+SELECT COUNT(c.cliID) 
+FROM Carga c
 GROUP BY c.cliID
+
+UPDATE Cliente
+SET cliCantCargas=0
+WHERE cliID=10
+
+/*Cliente 9 tiene 2 cargas*/
+INSERT INTO Carga (avionID, dContID, cargaFch, cargaKilos, cliID, aeroOrigen, aeroDestino, cargaStatus)
+VALUES 
+  ('AVN003', 'DC003', '03/03/2023', 3000, 9, 'CDG', 'LHR', 'E')
+/*Ahora tiene 3, yei*/
+DELETE FROM Carga
+WHERE avionID='AVN003' AND dContID='DC003' AND cargaFch='03/03/2023' AND cliID=9
+/*Ahora tiene 2, yei*/
+
+
+/*Si hacemos una múltiple...*/
+/*Cliente 9 tiene 2 cargas*/
+/*Cliente 10 tiene 0 cargas*/
+INSERT INTO Carga (avionID, dContID, cargaFch, cargaKilos, cliID, aeroOrigen, aeroDestino, cargaStatus)
+VALUES 
+  ('AVN003', 'DC003', '03/03/2023', 3000, 9, 'CDG', 'LHR', 'E'),
+  ('AVN004', 'DC004', '04/04/2023', 4000, 10, 'CDG', 'LHR', 'E')
+/*Cliente 9 ahora tiene 3 cargas*/
+/*Cliente 10 ahora tiene 1 cargas*/
+DELETE FROM Carga
+WHERE avionID='AVN003' AND dContID='DC003' AND cargaFch='03/03/2023' AND cliID=9
+DELETE FROM Carga
+WHERE avionID='AVN004' AND dContID='DC004' AND cargaFch='04/04/2023' AND cliID=10
 
 
 

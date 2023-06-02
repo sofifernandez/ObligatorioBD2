@@ -239,4 +239,75 @@ WHERE avionID='AVN004' AND dContID='DC004' AND cargaFch='04/04/2023' AND cliID=1
 
 
 
+/*
+6 c) Realizar un disparador que cuando se registra una nueva carga se valide que el avión tiene capacidad suficiente para almacenarla, 
+esta verificación debe tener en cuenta todas las cargas que se están haciendo en ese avión en la misma fecha.
+*/
+
+CREATE TRIGGER trg_CargaAviones
+ON Carga
+INSTEAD OF insert
+AS
+BEGIN
+	INSERT INTO Carga SELECT i.avionID, i.dContID, i.cargaFch,i.cargaKilos,i.cliID,i.aeroOrigen,i.aeroDestino,i.cargaStatus
+						FROM Inserted i, Avion av
+						WHERE i.avionID=av.avionID AND i.avionID NOT IN 
+						(
+						SELECT c.avionID,c.cargaFch, av.avionCapacidad,SUM(c.cargaKilos) as CargaTotal
+						FROM Inserted i, Avion av, Carga c
+						WHERE c.avionID=av.avionID
+						GROUP BY c.avionID,c.cargaFch, av.avionCapacidad
+						HAVING SUM(c.cargaKilos)>av.avionCapacidad*1000
+						)
+	SELECT 'No se puede ingresar la carga para el avión ' +av.avionID + ' en la fecha ' + i.cargaFch
+	FROM Inserted i, Avion av
+	WHERE i.avionID=av.avionID AND i.avionID IN (
+						SELECT c.avionID,c.cargaFch, av.avionCapacidad,SUM(c.cargaKilos) as CargaTotal
+						FROM Carga c, Avion av
+						WHERE c.avionID=av.avionID
+						GROUP BY c.avionID,c.cargaFch, av.avionCapacidad
+						HAVING SUM(c.cargaKilos)>av.avionCapacidad*1000
+						)
+END
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+CREATE TRIGGER trg_CargaAviones
+ON Carga
+INSTEAD OF insert
+AS
+BEGIN
+	INSERT INTO Carga SELECT i.avionID, i.dContID, i.cargaFch,i.cargaKilos,i.cliID,i.aeroOrigen,i.aeroDestino,i.cargaStatus
+						FROM Inserted i
+						WHERE i.avionID=Carga.avionID AND i.avionID NOT IN 
+						(
+						SELECT c.avionID,c.cargaFch, av.avionCapacidad,SUM(c.cargaKilos) as CargaTotal
+						FROM Inserted i, Avion av, Carga c
+						WHERE c.avionID=av.avionID
+						GROUP BY c.avionID,c.cargaFch, av.avionCapacidad
+						HAVING SUM(c.cargaKilos)>av.avionCapacidad*1000
+						)
+	SELECT 'No se puede ingresar la carga para el avión ' +av.avionID + ' en la fecha ' + i.cargaFch
+	FROM Inserted i, Avion av
+	WHERE i.avionID=av.avionID AND i.avionID IN (
+						SELECT c.avionID,c.cargaFch, av.avionCapacidad,SUM(c.cargaKilos) as CargaTotal
+						FROM Carga c, Avion av
+						WHERE c.avionID=av.avionID
+						GROUP BY c.avionID,c.cargaFch, av.avionCapacidad
+						HAVING SUM(c.cargaKilos)>av.avionCapacidad*1000
+						)
+END
+
+
 

@@ -3,6 +3,7 @@
 --6 --> b y d
 
 USE DBCARGAS
+SET DATEFORMAT DMY
 
 /*
 4 a) Mostrar los datos de los clientes que cargaron más kilos este año que el promedio total de kilos cargados 
@@ -12,7 +13,7 @@ SELECT cli.cliID, SUM(c.cargaKilos)
 FROM Cliente cli, Carga c
 WHERE cli.cliID= c.cliID
 GROUP BY cli.cliID
-HAVING SUM(c.cargaKilos) > (SELECT AVG(c1.cargaKilos) FROM Carga c1 WHERE YEAR(c1.cargaFch)='2022')
+HAVING SUM(c.cargaKilos) > (SELECT AVG(c1.cargaKilos) FROM Carga c1 WHERE YEAR(c1.cargaFch)=YEAR(getdate())-1)
 
 /*
 4 b)
@@ -22,7 +23,6 @@ Del total de kilos cargados por cada avión, mostrar cuál fue el mayor valor, cuá
 
 SELECT c.avionID, MIN(c.cargaKilos) as MinKilos, MAX(c.cargaKilos) as MaxKilos, AVG(c.cargaKilos) as PromKilos
 FROM Carga c
-WHERE c.cargaStatus<>'R'
 GROUP BY c.avionID
 
 /*
@@ -51,7 +51,7 @@ las cargas del año actual que utilizan aviones con una capacidad mayor a las 100
 
 SELECT DISTINCT c.idCarga, c.cargaFch, a1.aeroNombre as 'Origen', a2.aeroNombre as 'Destino'
 FROM Carga c, Aeropuerto a1, Aeropuerto a2, Avion av
-WHERE c.aeroOrigen=a1.codIATA AND c.aeroDestino=a2.codIATA AND c.avionID=av.avionID AND av.avionCapacidad>100;
+WHERE c.aeroOrigen=a1.codIATA AND c.aeroDestino=a2.codIATA AND c.avionID=av.avionID AND av.avionCapacidad>100 AND YEAR(c.cargaFch)=YEAR(getdate());
 
 
 /*
@@ -97,11 +97,11 @@ WHERE cli.cliID=c.cliID AND aero.codIATA=c.aeroDestino
 GROUP BY c.cliID, aero.aeroPais
 ORDER BY c.cliID
 
-CREATE FUNCTION sf_KilosClientePais(@IDCliente int)
+ALTER FUNCTION sf_KilosClientePais(@IDCliente int)
 RETURNS TABLE
 AS
 RETURN(
-	SELECT c.cliID,SUM(c.cargaKilos) as KilosTotales, aero.aeroPais as PaisDestino, COUNT(c.aeroDestino) as Cargas
+	SELECT c.cliID,SUM(c.cargaKilos) as KilosTotales, aero.aeroPais as PaisDestino, COUNT(c.aeroDestino) as Cargas, COUNT(DISTINCT aero.codIATA) NumAeropuertos
 	FROM Cliente cli, Carga C, Aeropuerto aero
 	WHERE cli.cliID=c.cliID AND aero.codIATA=c.aeroDestino AND cli.cliID=@IDCliente
 	GROUP BY c.cliID, aero.aeroPais
@@ -111,9 +111,8 @@ SELECT * FROM sf_KilosClientePais(1)
 
 
 /*
-6 b) Realizar un procedimiento almacenado que, dadas las 3 medidas de un contenedor (largo x ancho x alto) 
-retorne en una tabla los datos de los contenedores que coinciden con dichas medidas, de no existir ninguno 
-se debe retornar un mensaje.
+6 b) Hacer un disparador que, ante la modificación de cualquier medida de un contenedor, lleve un registro detallado en la tabla AuditContainer 
+(ver estructura de la tabla en el anexo del presente obligatorio).
 */
 
 CREATE TRIGGER trg_MedidasContenedor
@@ -244,70 +243,65 @@ WHERE avionID='AVN004' AND dContID='DC004' AND cargaFch='04/04/2023' AND cliID=1
 esta verificación debe tener en cuenta todas las cargas que se están haciendo en ese avión en la misma fecha.
 */
 
-CREATE TRIGGER trg_CargaAviones
+ALTER TRIGGER trg_CargaAviones
 ON Carga
 INSTEAD OF insert
 AS
 BEGIN
-	INSERT INTO Carga SELECT i.avionID, i.dContID, i.cargaFch,i.cargaKilos,i.cliID,i.aeroOrigen,i.aeroDestino,i.cargaStatus
-						FROM Inserted i, Avion av
-						WHERE i.avionID=av.avionID AND i.avionID NOT IN 
-						(
-						SELECT c.avionID,c.cargaFch, av.avionCapacidad,SUM(c.cargaKilos) as CargaTotal
-						FROM Inserted i, Avion av, Carga c
-						WHERE c.avionID=av.avionID
-						GROUP BY c.avionID,c.cargaFch, av.avionCapacidad
-						HAVING SUM(c.cargaKilos)>av.avionCapacidad*1000
-						)
-	SELECT 'No se puede ingresar la carga para el avión ' +av.avionID + ' en la fecha ' + i.cargaFch
-	FROM Inserted i, Avion av
-	WHERE i.avionID=av.avionID AND i.avionID IN (
-						SELECT c.avionID,c.cargaFch, av.avionCapacidad,SUM(c.cargaKilos) as CargaTotal
-						FROM Carga c, Avion av
-						WHERE c.avionID=av.avionID
-						GROUP BY c.avionID,c.cargaFch, av.avionCapacidad
-						HAVING SUM(c.cargaKilos)>av.avionCapacidad*1000
-						)
+	--INSERT INTO Carga	
+	SELECT i.avionID, i.dContID, i.cargaFch,i.cargaKilos,i.cliID,i.aeroOrigen,i.aeroDestino,i.cargaStatus
+						FROM Inserted i, Carga c
+						WHERE i.cargaFch=c.cargaFch AND i.avionID = c.avionID 
+						AND EXISTS (SELECT c.avionID,c.cargaFch, av.avionCapacidad,SUM(c.cargaKilos) as CargaTotal
+																						FROM  Avion av, Carga c
+																						WHERE c.avionID=av.avionID AND i.cargaFch=c.cargaFch
+																						GROUP BY c.avionID,c.cargaFch, av.avionCapacidad
+																						HAVING av.avionCapacidad*1000 > SUM(c.cargaKilos) + i.cargaKilos) 
+
+	
+
+	SELECT 'No se puede ingresar la carga para el avión ' +i.avionID + ' en la fecha ' + CAST(i.cargaFch AS VARCHAR) 
+	FROM Inserted i, Carga c
+	WHERE i.cargaFch=c.cargaFch AND i.avionID = c.avionID AND NOT EXISTS (SELECT c.avionID,c.cargaFch, av.avionCapacidad,SUM(c.cargaKilos) as CargaTotal
+																			FROM  Avion av, Carga c
+																			WHERE c.avionID=av.avionID AND i.cargaFch=c.cargaFch
+																			GROUP BY c.avionID,c.cargaFch, av.avionCapacidad
+																			HAVING av.avionCapacidad*1000 < SUM(c.cargaKilos) + i.cargaKilos)
+	
+	--SELECT 'No se puede ingresar la carga para el avión' + c.avionID + 'en la fecha ' + CAST(c.cargaFch as varchar)
+	--FROM Carga c, Inserted i
+	--WHERE c.cargaFch=i.cargaFch AND i.avionID = c.avionID 
+
+	--SELECT c.*
+	--FROM INSERTED i, Carga c
+	--WHERE i.avionID=c.avionID --APARECE 4 VECES, WHAT?
+
+	--SELECT i.*
+	--FROM Inserted i
+
 END
 
 
+SELECT c.avionID,c.cargaFch, av.avionCapacidad,SUM(c.cargaKilos) as CargaTotal
+																FROM  Avion av, Carga c
+																WHERE c.avionID=av.avionID
+																GROUP BY c.avionID,c.cargaFch, av.avionCapacidad
+																
 
 
 
+INSERT INTO Carga (avionID, dContID, cargaFch, cargaKilos, cliID, aeroOrigen, aeroDestino, cargaStatus)
+VALUES 
+  ('AVN009', 'DC001', '20/09/2018', 10000, 1, 'CDG', 'LHR', 'R')
 
 
+SELECT *
+FROM Carga c
+Order by c.avionID,c.cargaFch,c.dContID
 
 
-
-
-
-
-
-CREATE TRIGGER trg_CargaAviones
-ON Carga
-INSTEAD OF insert
-AS
-BEGIN
-	INSERT INTO Carga SELECT i.avionID, i.dContID, i.cargaFch,i.cargaKilos,i.cliID,i.aeroOrigen,i.aeroDestino,i.cargaStatus
-						FROM Inserted i
-						WHERE i.avionID=Carga.avionID AND i.avionID NOT IN 
-						(
-						SELECT c.avionID,c.cargaFch, av.avionCapacidad,SUM(c.cargaKilos) as CargaTotal
-						FROM Inserted i, Avion av, Carga c
-						WHERE c.avionID=av.avionID
-						GROUP BY c.avionID,c.cargaFch, av.avionCapacidad
-						HAVING SUM(c.cargaKilos)>av.avionCapacidad*1000
-						)
-	SELECT 'No se puede ingresar la carga para el avión ' +av.avionID + ' en la fecha ' + i.cargaFch
-	FROM Inserted i, Avion av
-	WHERE i.avionID=av.avionID AND i.avionID IN (
-						SELECT c.avionID,c.cargaFch, av.avionCapacidad,SUM(c.cargaKilos) as CargaTotal
-						FROM Carga c, Avion av
-						WHERE c.avionID=av.avionID
-						GROUP BY c.avionID,c.cargaFch, av.avionCapacidad
-						HAVING SUM(c.cargaKilos)>av.avionCapacidad*1000
-						)
-END
-
-
-
+SELECT c.avionID,c.cargaFch, av.avionCapacidad,SUM(c.cargaKilos) as CargaTotal
+																						FROM  Avion av, Carga c
+																						WHERE c.avionID=av.avionID AND cargaFch='20/09/2018'
+																						GROUP BY c.avionID,c.cargaFch, av.avionCapacidad
+																						HAVING av.avionCapacidad*1000 < SUM(c.cargaKilos) + 10000

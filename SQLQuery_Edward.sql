@@ -124,5 +124,16 @@ BEGIN
 END
 GO
 
+/* 4 f) Mostrar los datos del aeropuerto que recibió la mayor cantidad de kilos de los últimos 5 años. */
 
+SELECT DISTINCT a.*
+FROM Aeropuerto a, Carga c
+WHERE a.codIATA = c.aeroDestino
+	AND a.codIATA = (
+						SELECT TOP 1 c1.aeroDestino
+						FROM Carga c1
+						WHERE YEAR(c1.cargaFch) >= YEAR(getdate())-5
+						GROUP BY c1.aeroDestino, c1.cargaFch
+						ORDER BY SUM(c1.cargaKilos) DESC
+					)
 

@@ -136,4 +136,33 @@ WHERE a.codIATA = c.aeroDestino
 						GROUP BY c1.aeroDestino, c1.cargaFch
 						ORDER BY SUM(c1.cargaKilos) DESC
 					)
+GO
+
+
+/* 5 c) Hacer una función que reciba un código de aeropuerto y retorne la cantidad de kilos 
+   recibidos de carga cuando ese aeropuerto fue destino. */
+
+IF OBJECT_ID('FN_KilosDeCargaPorAeropuerto', 'FN') IS NOT NULL DROP FUNCTION FN_KilosDeCargaPorAeropuerto
+GO
+
+CREATE FUNCTION FN_KilosDeCargaPorAeropuerto (@codAeropuerto char(3))
+RETURNS DECIMAL(18,0)
+AS
+BEGIN
+	DECLARE @kilosCargaAeropuerto DECIMAL(18,0)
+	IF EXISTS (SELECT * FROM Aeropuerto a1 WHERE a1.codIATA = @codAeropuerto)
+		BEGIN
+			SELECT @kilosCargaAeropuerto = SUM(c.cargaKilos)
+			FROM Aeropuerto a, Carga c
+			WHERE a.codIATA = c.aeroDestino
+			GROUP BY a.codIATA
+		END
+	ELSE
+		BEGIN
+			SET @kilosCargaAeropuerto = -1
+		END
+
+	RETURN (@kilosCargaAeropuerto)
+END
+GO
 

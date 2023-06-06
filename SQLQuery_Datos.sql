@@ -60,8 +60,8 @@ VALUES
   ('DUB', 'Dublin-Aerfort Bhaile Atha Cli', 'Irlanda');
 
   --Otro aeropuerto que comparta país para el procedimiento almacenado 5d
-  INSERT INTO Aeropuerto (codIATA, aeroNombre, aeroPais)
-VALUES ('LGW', 'Londres-Gatwick', 'Reino Unido')
+INSERT INTO Aeropuerto (codIATA, aeroNombre, aeroPais)
+VALUES ('LGW', 'Londres-Gatwick', 'Reino Unido');
 
 
 INSERT INTO Carga (avionID, dContID, cargaFch, cargaKilos, cliID, aeroOrigen, aeroDestino, cargaStatus)

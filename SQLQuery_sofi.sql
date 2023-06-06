@@ -53,6 +53,56 @@ SELECT DISTINCT c.idCarga, c.cargaFch, a1.aeroNombre as 'Origen', a2.aeroNombre 
 FROM Carga c, Aeropuerto a1, Aeropuerto a2, Avion av
 WHERE c.aeroOrigen=a1.codIATA AND c.aeroDestino=a2.codIATA AND c.avionID=av.avionID AND av.avionCapacidad>100 AND YEAR(c.cargaFch)=YEAR(getdate());
 
+/*
+5 a)
+Escribir un procedimiento almacenado que reciba como parámetros un rango de fecha y retorne también por parámetros el identificador de avión que cargó 
+más kilos en dicho rango de fechas y el nombre del cliente que cargó más kilos en dicho rango (si hay más de uno, mostrar el primero).
+*/
+CREATE PROCEDURE sp_MaxKilosEntreFechas
+@Desde DATE,
+@Hasta DATE,
+@AvionID CHAR(10) OUTPUT,
+@ClienteNombre VARCHAR(30) OUTPUT
+AS
+BEGIN
+	SET @AvionID = (SELECT  av.avionID
+					FROM Avion av, Carga c
+					WHERE av.avionID=c.avionID AND c.cargaFch BETWEEN '01/01/2022'AND'31/12/2022'
+					GROUP BY av.avionID
+					HAVING SUM(c.cargaKilos)= (SELECT TOP 1 SUM(c.cargakilos) as Total
+												FROM Carga c
+												WHERE c.cargaFch BETWEEN '01/01/2022'AND'31/12/2022'
+												GROUP BY c.avionID
+												ORDER BY SUM(c.cargakilos) DESC))
+	SET @ClienteNombre = (SELECT cli.cliNom
+							FROM Cliente cli
+							WHERE cli.cliID IN(SELECT  cli.cliID
+												FROM Cliente cli, Carga c
+												WHERE cli.cliID=c.cliID AND c.cargaFch BETWEEN '01/01/2022'AND'31/12/2022'
+												GROUP BY cli.cliID
+												HAVING SUM(c.cargaKilos)= (SELECT TOP 1 SUM(c.cargakilos) as Total
+																			FROM Carga c
+																			WHERE c.cargaFch BETWEEN '01/01/2022'AND'31/12/2022'
+																			GROUP BY c.cliID
+																			ORDER BY SUM(c.cargakilos) DESC)))
+END
+
+DECLARE @Avion CHAR(10),@Cliente VARCHAR(30)
+EXECUTE sp_MaxKilosEntreFechas '01/01/2022', '31/12/2022', @Avion OUTPUT,@Cliente OUTPUT
+PRINT @Avion
+PRINT @Cliente
+
+
+
+--OTRA FORMA PARA LA SUBQUERY DEL MAXIMO:									
+--SELECT MAX (Total) FROM (
+--SELECT SUM(c.cargakilos) as Total
+--FROM Carga c
+--WHERE c.cargaFch BETWEEN '01/01/2022'AND'31/12/2022'
+--GROUP BY c.avionID
+--) AS derived_table
+
+
 
 /*
 5 b) 
@@ -60,7 +110,7 @@ Realizar un procedimiento almacenado que, dadas las 3 medidas de un contenedor (
 los datos de los contenedores que coinciden con dichas medidas, de no existir ninguno se debe retornar un mensaje.
 */
 
-ALTER PROCEDURE sp_DimContenedores
+CREATE PROCEDURE sp_DimContenedores
 @Largo DECIMAL(12,2),
 @Ancho DECIMAL(12,2),
 @Alto DECIMAL(12,2)

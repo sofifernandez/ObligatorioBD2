@@ -44,7 +44,7 @@ VALUES
   ('DCC010', 2.1, 2.5, 2.3, 5);
 
 INSERT INTO Dcontainer (dContID, dContLargo, dContAncho, dcontAlto, dcontCapacidad)
-VALUES ('DCC011', 2.1, 2.1, 1.9, 4) --contenedor que nunca se usó (para la query 4c)
+VALUES ('DCC011', 2.0, 2.5, 1.8, 4) --contenedor que nunca se usó (para la query 4c)
 
 INSERT INTO Aeropuerto (codIATA, aeroNombre, aeroPais)
 VALUES 

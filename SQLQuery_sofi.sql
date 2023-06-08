@@ -58,6 +58,7 @@ WHERE c.aeroOrigen=a1.codIATA AND c.aeroDestino=a2.codIATA AND c.avionID=av.avio
 Escribir un procedimiento almacenado que reciba como parámetros un rango de fecha y retorne también por parámetros el identificador de avión que cargó 
 más kilos en dicho rango de fechas y el nombre del cliente que cargó más kilos en dicho rango (si hay más de uno, mostrar el primero).
 */
+SET DATEFORMAT DMY
 CREATE PROCEDURE sp_MaxKilosEntreFechas
 @Desde DATE,
 @Hasta DATE,
@@ -65,7 +66,7 @@ CREATE PROCEDURE sp_MaxKilosEntreFechas
 @ClienteNombre VARCHAR(30) OUTPUT
 AS
 BEGIN
-	SET @AvionID = (SELECT  av.avionID
+	SET @AvionID = (SELECT TOP 1 av.avionID
 					FROM Avion av, Carga c
 					WHERE av.avionID=c.avionID AND c.cargaFch BETWEEN '01/01/2022'AND'31/12/2022'
 					GROUP BY av.avionID
@@ -76,7 +77,7 @@ BEGIN
 												ORDER BY SUM(c.cargakilos) DESC))
 	SET @ClienteNombre = (SELECT cli.cliNom
 							FROM Cliente cli
-							WHERE cli.cliID IN(SELECT  cli.cliID
+							WHERE cli.cliID = (SELECT TOP 1 cli.cliID
 												FROM Cliente cli, Carga c
 												WHERE cli.cliID=c.cliID AND c.cargaFch BETWEEN '01/01/2022'AND'31/12/2022'
 												GROUP BY cli.cliID

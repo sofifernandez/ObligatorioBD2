@@ -301,21 +301,20 @@ AS
 BEGIN
 	--INSERT INTO Carga	
 	SELECT i.avionID, i.dContID, i.cargaFch,i.cargaKilos,i.cliID,i.aeroOrigen,i.aeroDestino,i.cargaStatus
-						FROM Inserted i, Carga c
-						WHERE i.cargaFch=c.cargaFch AND i.avionID = c.avionID 
-						AND EXISTS (SELECT c.avionID,c.cargaFch, av.avionCapacidad,SUM(c.cargaKilos) as CargaTotal
+						FROM Inserted i
+						WHERE i.avionID in (SELECT c.avionID
 																						FROM  Avion av, Carga c
-																						WHERE c.avionID=av.avionID AND i.cargaFch=c.cargaFch
+																						WHERE c.avionID=av.avionID AND c.cargaFch=i.cargaFch AND c.avionID=i.avionID 
 																						GROUP BY c.avionID,c.cargaFch, av.avionCapacidad
 																						HAVING av.avionCapacidad*1000 > SUM(c.cargaKilos) + i.cargaKilos) 
-
+	
 	
 
 	SELECT 'No se puede ingresar la carga para el avión ' +i.avionID + ' en la fecha ' + CAST(i.cargaFch AS VARCHAR) 
 	FROM Inserted i, Carga c
-	WHERE i.cargaFch=c.cargaFch AND i.avionID = c.avionID AND NOT EXISTS (SELECT c.avionID,c.cargaFch, av.avionCapacidad,SUM(c.cargaKilos) as CargaTotal
+	WHERE i.cargaFch=c.cargaFch AND i.avionID NOT IN (SELECT c.avionID
 																			FROM  Avion av, Carga c
-																			WHERE c.avionID=av.avionID AND i.cargaFch=c.cargaFch
+																			WHERE c.avionID=av.avionID AND c.cargaFch=i.cargaFch AND c.avionID=i.avionID 
 																			GROUP BY c.avionID,c.cargaFch, av.avionCapacidad
 																			HAVING av.avionCapacidad*1000 < SUM(c.cargaKilos) + i.cargaKilos)
 	
@@ -333,26 +332,64 @@ BEGIN
 END
 
 
-SELECT c.avionID,c.cargaFch, av.avionCapacidad,SUM(c.cargaKilos) as CargaTotal
-																FROM  Avion av, Carga c
-																WHERE c.avionID=av.avionID
-																GROUP BY c.avionID,c.cargaFch, av.avionCapacidad
+
+--PRUEBAS ACÁ ABAJO, NO DAR BOLA
+
 																
 
 
 
 INSERT INTO Carga (avionID, dContID, cargaFch, cargaKilos, cliID, aeroOrigen, aeroDestino, cargaStatus)
 VALUES 
-  ('AVN009', 'DC001', '20/09/2018', 10000, 1, 'CDG', 'LHR', 'R')
+  ('AVN009', 'DC001', '20/09/2018', 12000, 1, 'CDG', 'LHR', 'R')
 
 
-SELECT *
-FROM Carga c
-Order by c.avionID,c.cargaFch,c.dContID
 
 
-SELECT c.avionID,c.cargaFch, av.avionCapacidad,SUM(c.cargaKilos) as CargaTotal
-																						FROM  Avion av, Carga c
-																						WHERE c.avionID=av.avionID AND cargaFch='20/09/2018'
-																						GROUP BY c.avionID,c.cargaFch, av.avionCapacidad
-																						HAVING av.avionCapacidad*1000 < SUM(c.cargaKilos) + 10000
+
+
+
+
+  CREATE TRIGGER TRG_InsertCarga
+ON Carga
+INSTEAD OF INSERT
+AS
+BEGIN
+	/* Chequeo que no exista registro con iguales avionID, dContID y cargaFch */
+	IF NOT EXISTS (SELECT * FROM Carga c, inserted i WHERE c.idCarga = i.idCarga AND c.dContID = i.dContID AND c.cargaFch = i.cargaFch)
+		BEGIN
+
+			/* Chequeo que Avion no supere 150 toneladas de peso con nueva Carga */
+			DECLARE @cargaKilosAvion DECIMAL(12,2)
+			DECLARE @avionCapacidad DECIMAL(12,2)
+
+			SELECT @avionCapacidad = a.avionCapacidad FROM Avion a, inserted i WHERE a.avionID = i.avionID
+			SELECT @cargaKilosAvion = SUM(c.cargaKilos) + i.cargaKilos 
+									  FROM Carga c, inserted i 
+									  WHERE c.avionID = i.avionID 
+										AND c.cargaFch = i.cargaFch 
+										AND c.aeroOrigen = i.aeroOrigen 
+										AND c.aeroDestino = i.aeroDestino
+
+			IF (@cargaKilosAvion <= @avionCapacidad)
+				BEGIN
+					/* Carga de datos en caso de que todo este ok */
+					INSERT INTO Carga (avionID, dContID, cargaFch, cargaKilos, cliID, aeroOrigen, aeroDestino, cargaStatus)
+					SELECT i.avionID, i.dContID, i.cargaFch, i.cargaKilos, i.cliID, i.aeroOrigen, i.aeroDestino, i.cargaStatus FROM inserted i
+			
+					/* Actualizo cliCantCargas de Cliente */
+					UPDATE Cliente
+					SET cliCantCargas = cliCantCargas + (SELECT COUNT(i.cliID) 
+														FROM Inserted i 
+														WHERE i.cliID = Cliente.cliID
+														GROUP BY i.cliID)
+					WHERE cliID IN (SELECT cliID
+									FROM inserted)
+				END
+			ELSE
+				BEGIN
+					PRINT 'ERROR: La carga la capacidad del avion'
+				END
+		END
+END
+GO

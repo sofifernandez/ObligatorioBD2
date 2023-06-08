@@ -235,7 +235,11 @@ VALUES ('AVN001', 'DCC008', '12/01/2023', 7000, 1, 'FRA', 'MAD', 'D'),
   INSERT INTO Carga (avionID, dContID, cargaFch, cargaKilos, cliID, aeroOrigen, aeroDestino, cargaStatus)
 VALUES   ('AVN009', 'DCC001', '19/10/2018', 4000, 1, 'LIS', 'LGW', 'E')
 
-/*ESTOS DARIAN ERROR*/
+
+
+/* ESTOS QUE GENERAN ERROR */
+/* COMENTADO PARA QUE SCRIPT SE PUEDA EJECUTAR SIN PROBLEMAS */
+/*
 INSERT INTO Cliente (cliNom, cliMail, cliCantCargas)
 VALUES ('John Doe', 'leonardodavinci@mail.com', 5); -- EL MAIL YA EXISTE
 
@@ -250,9 +254,4 @@ VALUES ('DUB', 'Aeropuerto de Viena-Schwechat', 'Austria'); -- ERROR DE PK Aerop
 
 INSERT INTO Carga (avionID, dContID, cargaFch, cargaKilos, cliID, aeroOrigen, aeroDestino, cargaStatus)
 VALUES ('AV001', 'DC001', '01/05/2023', 1000, 100, 'CDG', 'LHR', 'R'); -- El Avion no existe, viola la foreign key
-
-
-
-
-
-
+*/

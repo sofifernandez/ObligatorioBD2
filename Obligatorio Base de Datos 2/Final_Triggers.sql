@@ -1,73 +1,42 @@
 USE DBCARGAS
 SET DATEFORMAT DMY
 
-/* 6a - 6c */
-IF OBJECT_ID('TRG_InsertCarga', 'TR') IS NOT NULL DROP TRIGGER TRG_InsertCarga
+/*
+6 a)
+Realizar un disparador que lleve un mantenimiento de la cantidad de cargas acumuladas de un cliente, 
+este disparador debe controlar tanto los ingresos de cargas como el borrado de cargas.
+*/
+
+IF OBJECT_ID('TRG_UpdateCarga', 'TR') IS NOT NULL DROP TRIGGER TRG_UpdateCarga
 GO
 
-CREATE TRIGGER TRG_InsertCarga
+CREATE TRIGGER TRG_UpdateCarga
 ON Carga
-INSTEAD OF INSERT
+AFTER INSERT, DELETE
 AS
 BEGIN
-	/* Chequeo que no exista registro con iguales avionID, dContID y cargaFch */
-	IF NOT EXISTS (SELECT * FROM Carga c, inserted i WHERE c.idCarga = i.idCarga AND c.dContID = i.dContID AND c.cargaFch = i.cargaFch)
-		BEGIN
+	/*En caso de INSERT*/
+	IF EXISTS (SELECT * FROM inserted) AND NOT EXISTS (SELECT * FROM deleted)
+	BEGIN
+		UPDATE Cliente
+		SET cliCantCargas = cliCantCargas + 1
+		WHERE cliID IN (SELECT cliID
+						FROM inserted)
+	END
 
-			/* Chequeo que Avion no supere toneladas de peso que soporta con la nueva Carga */
-			DECLARE @cargaKilosAvion DECIMAL(12,2)
-			DECLARE @avionCapacidad DECIMAL(12,2)
-
-			SELECT @avionCapacidad = a.avionCapacidad * 1000 FROM Avion a, inserted i WHERE a.avionID = i.avionID
-			SELECT @cargaKilosAvion = SUM(c.cargaKilos) + i.cargaKilos 
-									  FROM Carga c, inserted i 
-									  WHERE c.avionID = i.avionID 
-										AND c.cargaFch = i.cargaFch 
-										AND c.aeroOrigen = i.aeroOrigen 
-										AND c.aeroDestino = i.aeroDestino
-									  GROUP BY i.cargaKilos
-
-			IF (@cargaKilosAvion <= @avionCapacidad)
-				BEGIN
-					/* Carga de datos en caso de que todo este ok */
-					INSERT INTO Carga (avionID, dContID, cargaFch, cargaKilos, cliID, aeroOrigen, aeroDestino, cargaStatus)
-					SELECT i.avionID, i.dContID, i.cargaFch, i.cargaKilos, i.cliID, i.aeroOrigen, i.aeroDestino, i.cargaStatus FROM inserted i
-			
-					/* Actualizo cliCantCargas de Cliente */
-					UPDATE Cliente
-					SET cliCantCargas = cliCantCargas + (SELECT COUNT(i.cliID) 
-														FROM Inserted i 
-														WHERE i.cliID = Cliente.cliID
-														GROUP BY i.cliID)
-					WHERE cliID IN (SELECT cliID
-									FROM inserted)
-				END
-			ELSE
-				BEGIN
-					PRINT 'ERROR: La carga supera la capacidad del avion'
-				END
-		END
+	/*En caso de DELETE*/
+	IF NOT EXISTS (SELECT * FROM inserted) AND EXISTS (SELECT * FROM deleted)
+	BEGIN
+		UPDATE Cliente
+		SET cliCantCargas = cliCantCargas - 1
+		WHERE cliID IN (SELECT cliID
+						FROM deleted)
+	END
 END
 GO
 
-IF OBJECT_ID('TRG_DeleteCarga', 'TR') IS NOT NULL DROP TRIGGER TRG_DeleteCarga
+IF OBJECT_ID('trg_MedidasContenedor', 'TR') IS NOT NULL DROP TRIGGER trg_MedidasContenedor
 GO
-
-CREATE TRIGGER TRG_DeleteCarga
-ON Carga
-AFTER DELETE
-AS
-BEGIN
-	UPDATE Cliente
-	SET cliCantCargas = cliCantCargas - (SELECT COUNT(d.cliID) 
-										FROM Deleted d 
-										WHERE d.cliID = Cliente.cliID
-										GROUP BY d.cliID)
-	WHERE cliID IN (SELECT cliID
-					FROM Deleted)
-END
-GO
-
 
 /*
 6 b) Hacer un disparador que, ante la modificación de cualquier medida de un contenedor, lleve un registro detallado en la tabla AuditContainer 

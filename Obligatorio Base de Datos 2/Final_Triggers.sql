@@ -119,3 +119,52 @@ SELECT * FROM Dcontainer
 /*PROBAR*/
 UPDATE Dcontainer SET dcontLargo=2.4 WHERE dContID='DC011'
 SELECT * FROM AuditContainer
+
+
+
+/* 6 c) Realizar un disparador que cuando se registra una nueva carga se valide que el avión 
+	tiene capacidad suficiente para almacenarla, esta verificación debe tener en cuenta 
+	todas las cargas que se están haciendo en ese avión en la misma fecha */
+IF OBJECT_ID('TRG_InsertCargaCheckCapacidad', 'TR') IS NOT NULL DROP TRIGGER TRG_InsertCargaCheckCapacidad
+GO
+
+ALTER TRIGGER TRG_InsertCargaCheckCapacidad
+ON Carga
+INSTEAD OF INSERT
+AS
+BEGIN
+	SET NOCOUNT ON
+	/* Chequeo que Avion no supere toneladas de peso que soporta con la nueva Carga */
+	DECLARE @nuevaCargaKilosAvion DECIMAL(12,2)
+	DECLARE @kilosActualesAvion DECIMAL(12,2)
+	DECLARE @avionCapacidad DECIMAL(12,2)
+
+	SELECT @avionCapacidad = a.avionCapacidad * 1000 FROM Avion a, inserted i WHERE a.avionID = i.avionID
+
+	SELECT @kilosActualesAvion = SUM(c2.cargaKilos) FROM Carga c2, inserted i2 WHERE c2.avionID = i2.avionID;
+
+	SELECT @nuevaCargaKilosAvion = i.cargaKilos + @kilosActualesAvion FROM inserted i;
+	
+	IF (@nuevaCargaKilosAvion <= @avionCapacidad)
+		BEGIN
+			/* Carga de datos en caso de que todo este ok */
+			INSERT INTO Carga (avionID, dContID, cargaFch, cargaKilos, cliID, aeroOrigen, aeroDestino, cargaStatus)
+			SELECT i.avionID, i.dContID, i.cargaFch, i.cargaKilos, i.cliID, i.aeroOrigen, i.aeroDestino, i.cargaStatus FROM inserted i
+		END
+	ELSE
+		BEGIN
+			PRINT 'ERROR: La carga supera la capacidad del avion'
+		END
+END
+GO
+
+/* PRUEBAS 6c */
+/* CARGA SIN ERROR */
+INSERT INTO Carga (avionID, dContID, cargaFch, cargaKilos, cliID, aeroOrigen, aeroDestino, cargaStatus)
+VALUES 
+  ('AVN001', 'DCC009', '18/01/2023', 1500, 1, 'CDG', 'LHR', 'R');
+
+/* CARGA CON ERROR */
+INSERT INTO Carga (avionID, dContID, cargaFch, cargaKilos, cliID, aeroOrigen, aeroDestino, cargaStatus)
+VALUES 
+  ('AVN001', 'DCC009', '19/01/2023', 150000, 1, 'CDG', 'LHR', 'R');

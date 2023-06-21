@@ -137,7 +137,7 @@ SET DATEFORMAT DMY
 
 INSERT INTO Cliente (cliNom, cliMail, cliCantCargas)
 VALUES 
-  ('Leonardo da Vinci', 'leonardodavinci@mail.com', 3),
+  ('Leonardo da Vinci', 'leonardodavinci@mail.com', 14),
   ('Pablo Picasso', 'pablopicasso@mail.com', 2),
   ('Vincent van Gogh', 'vincentvangogh@mail.com', 2),
   ('Frida Kahlo', 'fridakahlo@mail.com', 1),
